@@ -94,6 +94,7 @@ export default function HomeView({ onOpenCreateModal }: HomeViewProps) {
                 >
                     <MapPin size={16} className="text-teal-600" />
                     <span>{selectedArea}</span>
+                    <span className="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black animate-pulse">DEV v2</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 </button>
                 <div className="relative">
