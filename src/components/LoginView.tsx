@@ -1,3 +1,5 @@
+"use client";
+
 import {
     signInWithRedirect,
     GoogleAuthProvider,
@@ -6,7 +8,6 @@ import {
     browserLocalPersistence
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-"use client";
 
 import React from 'react';
 
