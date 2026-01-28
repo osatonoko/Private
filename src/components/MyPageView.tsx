@@ -1,20 +1,97 @@
 "use client";
 
-import React, { useState } from 'react';
-import { User, Settings, Award, History, Database, Edit2, LogOut } from 'lucide-react';
-import { auth } from '@/lib/firebase';
+import React, { useState, useEffect } from 'react';
+import { User, Settings, Award, History, Database, Edit2, LogOut, Save, X, Trash2 } from 'lucide-react';
+import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/lib/useAuth';
 import { seedDemoData } from '@/lib/seeding';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc } from 'firebase/firestore';
+
+interface UserProfile {
+    displayName: string;
+    bio: string;
+    photoURL?: string;
+}
 
 export default function MyPageView() {
     const { user } = useAuth();
+    const [profile, setProfile] = useState<UserProfile>({ displayName: '', bio: '' });
+    const [isEditing, setIsEditing] = useState(false);
     const [seeding, setSeeding] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [myEvents, setMyEvents] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'organized' | 'joined'>('organized');
+
+    useEffect(() => {
+        if (user) {
+            fetchProfile();
+            fetchMyEvents();
+        }
+    }, [user, activeTab]);
+
+    const fetchProfile = async () => {
+        if (!user) return;
+        try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+                setProfile(userDoc.data() as UserProfile);
+            } else {
+                setProfile({ displayName: user.displayName || '', bio: '' });
+            }
+        } catch (error) {
+            console.error("Profile fetch error:", error);
+        }
+    };
+
+    const fetchMyEvents = async () => {
+        if (!user) return;
+        try {
+            let q;
+            if (activeTab === 'organized') {
+                q = query(collection(db, "events"), where("hostId", "==", user.uid));
+            } else {
+                q = query(collection(db, "events"), where("hostId", "==", user.uid));
+            }
+            const snapshot = await getDocs(q);
+            setMyEvents(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (error) {
+            console.error("Events fetch error:", error);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        if (!user) return;
+        setSaving(true);
+        try {
+            await setDoc(doc(db, "users", user.uid), {
+                ...profile,
+                updatedAt: new Date()
+            }, { merge: true });
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Error saving profile:", error);
+            alert("保存に失敗しました。");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteEvent = async (id: string) => {
+        if (!confirm('このイベントを削除しますか？')) return;
+        try {
+            await deleteDoc(doc(db, "events", id));
+            fetchMyEvents();
+        } catch (e) {
+            alert('削除に失敗しました。');
+        }
+    };
 
     const handleSeed = async () => {
         if (!confirm('デモデータを追加しますか？')) return;
         setSeeding(true);
         try {
             await seedDemoData();
+            fetchMyEvents();
             alert('デモデータを追加しました！ホーム画面に反映されます。');
         } catch (e) {
             alert('追加に失敗しました。');
@@ -32,8 +109,8 @@ export default function MyPageView() {
                 <div className="flex items-center justify-between mb-8 relative z-10">
                     <h2 className="text-2xl font-bold text-gray-800">マイページ</h2>
                     <div className="flex gap-2">
-                        <button className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                            <Settings size={22} />
+                        <button onClick={() => setIsEditing(!isEditing)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
+                            {isEditing ? <X size={22} /> : <Settings size={22} />}
                         </button>
                         <button onClick={() => auth.signOut()} className="p-2 hover:bg-red-50 rounded-full text-red-400">
                             <LogOut size={22} />
@@ -41,46 +118,110 @@ export default function MyPageView() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-6 relative z-10">
-                    <div className="relative">
-                        <div className="w-24 h-24 bg-gradient-to-tr from-teal-400 to-blue-500 rounded-[32px] p-1 shadow-lg shadow-teal-100">
-                            <div className="w-full h-full bg-white rounded-[28px] overflow-hidden flex items-center justify-center">
-                                {user?.photoURL ? (
-                                    <img src={user.photoURL} alt={user.displayName || 'User'} className="w-full h-full object-cover" />
-                                ) : (
-                                    <User size={40} className="text-teal-600" />
-                                )}
+                <div className="flex flex-col gap-6 relative z-10">
+                    <div className="flex items-center gap-6">
+                        <div className="relative">
+                            <div className="w-24 h-24 bg-gradient-to-tr from-teal-400 to-blue-500 rounded-[32px] p-1 shadow-lg shadow-teal-100">
+                                <div className="w-full h-full bg-white rounded-[28px] overflow-hidden flex items-center justify-center">
+                                    {user?.photoURL ? (
+                                        <img src={user.photoURL} alt={profile.displayName} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <User size={40} className="text-teal-600" />
+                                    )}
+                                </div>
                             </div>
                         </div>
-                        <button className="absolute -bottom-1 -right-1 w-8 h-8 bg-white border border-gray-100 rounded-full flex items-center justify-center text-gray-400 shadow-sm active:scale-90 transition-transform">
-                            <Edit2 size={14} />
-                        </button>
-                    </div>
-                    <div>
-                        <h3 className="text-2xl font-black text-gray-800 mb-1">{user?.displayName || 'ゲストユーザー'}</h3>
-                        <div className="flex items-center gap-2">
-                            <span className="bg-teal-50 text-teal-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Verified</span>
-                            <p className="text-xs text-gray-400 font-bold">信頼スコア: ⭐️ 4.8</p>
+                        <div className="flex-1">
+                            {isEditing ? (
+                                <input
+                                    type="text"
+                                    value={profile.displayName}
+                                    onChange={(e) => setProfile({ ...profile, displayName: e.target.value })}
+                                    className="w-full text-2xl font-black text-gray-800 border-b-2 border-teal-500 focus:outline-none bg-transparent mb-2"
+                                    placeholder="名前を入力"
+                                />
+                            ) : (
+                                <h3 className="text-2xl font-black text-gray-800 mb-1">{profile.displayName || 'ゲストユーザー'}</h3>
+                            )}
+                            <div className="flex items-center gap-2">
+                                <span className="bg-teal-50 text-teal-600 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Verified</span>
+                                <p className="text-xs text-gray-400 font-bold">信頼スコア: ⭐️ 4.8</p>
+                            </div>
                         </div>
                     </div>
+
+                    {isEditing ? (
+                        <div className="space-y-4">
+                            <textarea
+                                value={profile.bio}
+                                onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                                className="w-full p-4 rounded-2xl bg-gray-50 border border-gray-100 text-sm text-gray-600 focus:ring-2 focus:ring-teal-500 outline-none h-24 resize-none"
+                                placeholder="自己紹介文を入力してください..."
+                            />
+                            <button
+                                onClick={handleSaveProfile}
+                                disabled={saving}
+                                className="w-full bg-teal-600 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-teal-100 disabled:opacity-50"
+                            >
+                                <Save size={18} />
+                                {saving ? '保存中...' : 'プロフィールを保存'}
+                            </button>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-500 leading-relaxed font-medium px-1">
+                            {profile.bio || '自己紹介がまだありません。設定から追加しましょう！'}
+                        </p>
+                    )}
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="px-6 grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-white p-5 rounded-[32px] shadow-sm flex flex-col items-center gap-2 border border-gray-50">
-                    <div className="w-10 h-10 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-500 mb-1">
-                        <Award size={20} />
-                    </div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Organized</span>
-                    <span className="text-2xl font-black text-gray-800">12</span>
+            {/* My Events Section */}
+            <div className="px-6 mb-8">
+                <div className="flex gap-2 mb-6">
+                    <button
+                        onClick={() => setActiveTab('organized')}
+                        className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'organized' ? 'bg-teal-600 text-white shadow-lg' : 'bg-white text-gray-400'}`}
+                    >
+                        主催した
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('joined')}
+                        className={`flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'joined' ? 'bg-teal-600 text-white shadow-lg' : 'bg-white text-gray-400'}`}
+                    >
+                        参加中
+                    </button>
                 </div>
-                <div className="bg-white p-5 rounded-[32px] shadow-sm flex flex-col items-center gap-2 border border-gray-50">
-                    <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-500 mb-1">
-                        <History size={20} />
-                    </div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Attended</span>
-                    <span className="text-2xl font-black text-gray-800">48</span>
+
+                <div className="space-y-4">
+                    {myEvents.length === 0 ? (
+                        <div className="text-center py-10 bg-white rounded-3xl border border-dashed border-gray-200 text-gray-400 text-sm font-medium">
+                            イベントがありません
+                        </div>
+                    ) : (
+                        myEvents.map((event) => (
+                            <div key={event.id} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-50 flex items-center gap-4">
+                                <div className="w-16 h-16 bg-gray-100 rounded-2xl overflow-hidden shrink-0">
+                                    {event.imageUrl ? (
+                                        <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-gray-800 truncate mb-1">{event.title}</h4>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{event.category}</p>
+                                </div>
+                                {activeTab === 'organized' && (
+                                    <button
+                                        onClick={() => handleDeleteEvent(event.id)}
+                                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                )}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 

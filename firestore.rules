@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザープロフィールのルール
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // イベントのルール
+    match /events/{eventId} {
+      allow read: if true; // 誰でも閲覧可能
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && 
+        (resource.data.hostId == request.auth.uid || request.auth.uid == 'demo_host_system');
+        
+      // 参加者サブコレクション（将来用）
+      match /participants/{participantId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null && request.auth.uid == participantId;
+      }
+    }
+  }
+}

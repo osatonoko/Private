@@ -1,18 +1,26 @@
 "use client";
 
 import React from 'react';
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function LoginView() {
     const handleGoogleLogin = async () => {
         const provider = new GoogleAuthProvider();
         try {
-            await signInWithPopup(auth, provider);
+            // モバイルブラウザの仕様（ITP等）によるエラーを防ぐため、リダイレクト方式を使用します
+            await signInWithRedirect(auth, provider);
         } catch (error) {
             console.error("Login failed", error);
         }
     };
+
+    // リダイレクト後の結果を確認
+    React.useEffect(() => {
+        getRedirectResult(auth).catch((error) => {
+            console.error("Redirect login error:", error);
+        });
+    }, []);
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-100 p-4">
