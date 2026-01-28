@@ -5,12 +5,12 @@ import { getStorage } from "firebase/storage";
 
 // Step 3-2で控えたConfigをここに貼り付け
 const firebaseConfig = {
-    apiKey: "AIzaSyAGwzgJyMVDsGOVCCHgxhIYsrCFuZ7a3Gw",
-    authDomain: "monos-d73f9.firebaseapp.com",
-    projectId: "monos-d73f9",
-    storageBucket: "monos-d73f9.firebasestorage.app",
-    messagingSenderId: "133123151326",
-    appId: "1:133123151326:web:e4cd8192b1855dc5a7794f"
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
