@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { X, CreditCard, Info, Users, CheckCircle2 } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
+import { useAuth } from '@/lib/useAuth';
 
 interface ParticipationModalProps {
     isOpen: boolean;
@@ -15,8 +18,10 @@ interface ParticipationModalProps {
 }
 
 export default function ParticipationModal({ isOpen, onClose, event }: ParticipationModalProps) {
+    const { user } = useAuth();
     const [step, setStep] = useState<'confirm' | 'payment' | 'success'>('confirm');
     const [guestCount, setGuestCount] = useState(0);
+    const [loading, setLoading] = useState(false);
     const depositPerPerson = 50;
 
     if (!isOpen || !event) return null;
@@ -24,9 +29,26 @@ export default function ParticipationModal({ isOpen, onClose, event }: Participa
     const totalFee = event.price * (1 + guestCount);
     const totalDeposit = depositPerPerson * (1 + guestCount);
 
-    const handleNext = () => {
-        if (step === 'confirm') setStep('payment');
-        else if (step === 'payment') setStep('success');
+    const handleNext = async () => {
+        if (step === 'confirm') {
+            setStep('payment');
+        } else if (step === 'payment') {
+            if (!user) return;
+            setLoading(true);
+            try {
+                const eventRef = doc(db, "events", event.id);
+                await updateDoc(eventRef, {
+                    participants: arrayUnion(user.uid),
+                    currentCount: increment(1 + guestCount)
+                });
+                setStep('success');
+            } catch (error) {
+                console.error("Join error:", error);
+                alert("参加登録に失敗しました。");
+            } finally {
+                setLoading(false);
+            }
+        }
     };
 
     const resetAndClose = () => {
@@ -68,8 +90,8 @@ export default function ParticipationModal({ isOpen, onClose, event }: Participa
                                             key={num}
                                             onClick={() => setGuestCount(num)}
                                             className={`flex-1 py-3.5 rounded-2xl text-sm font-bold border transition-all ${guestCount === num
-                                                    ? 'bg-teal-600 border-teal-600 text-white shadow-lg shadow-teal-100'
-                                                    : 'bg-white border-gray-100 text-gray-400'
+                                                ? 'bg-teal-600 border-teal-600 text-white shadow-lg shadow-teal-100'
+                                                : 'bg-white border-gray-100 text-gray-400'
                                                 }`}
                                         >
                                             {num === 0 ? '自分のみ' : `+${num}名`}
@@ -135,9 +157,10 @@ export default function ParticipationModal({ isOpen, onClose, event }: Participa
                             <div className="space-y-3 pt-4">
                                 <button
                                     onClick={handleNext}
-                                    className="w-full bg-teal-600 text-white font-bold py-4 rounded-3xl hover:bg-teal-700 shadow-lg shadow-teal-100 transition-all"
+                                    disabled={loading}
+                                    className="w-full bg-teal-600 text-white font-bold py-4 rounded-3xl hover:bg-teal-700 shadow-lg shadow-teal-100 transition-all disabled:opacity-50"
                                 >
-                                    確定して支払う
+                                    {loading ? '処理中...' : '確定して支払う'}
                                 </button>
                                 <button
                                     onClick={() => setStep('confirm')}

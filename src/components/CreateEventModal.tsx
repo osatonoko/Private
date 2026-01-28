@@ -5,7 +5,7 @@ import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firesto
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
-import { X, Calendar, Clock, MapPin, Users, Flame, Star, BookOpen } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, Users, Flame, Star, BookOpen, Camera } from 'lucide-react';
 
 interface CreateEventModalProps {
     isOpen: boolean;
