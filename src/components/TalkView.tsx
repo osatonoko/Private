@@ -16,7 +16,11 @@ interface ChatRoom {
     hostId: string;
 }
 
-export default function TalkView() {
+interface TalkViewProps {
+    onSelectRoom: (id: string) => void;
+}
+
+export default function TalkView({ onSelectRoom }: TalkViewProps) {
     const { user } = useAuth();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [loading, setLoading] = useState(true);
@@ -78,7 +82,7 @@ export default function TalkView() {
                         <button
                             key={room.id}
                             className="w-full bg-white p-5 rounded-[32px] shadow-sm border border-gray-50 flex items-center gap-4 active:scale-[0.98] transition-all text-left"
-                            onClick={() => alert('トークルーム機能は開発中です！もうすぐリリースされます 🚀')}
+                            onClick={() => onSelectRoom(room.id)}
                         >
                             <div className="w-14 h-14 bg-gradient-to-br from-teal-50 to-blue-50 rounded-2xl flex items-center justify-center text-teal-500 shrink-0">
                                 <MessageCircle size={24} />
