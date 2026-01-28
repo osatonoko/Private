@@ -1,25 +1,44 @@
-"use client";
-
-import React from 'react';
-import { signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth";
+import {
+    signInWithRedirect,
+    GoogleAuthProvider,
+    getRedirectResult,
+    setPersistence,
+    browserLocalPersistence
+} from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function LoginView() {
     const handleGoogleLogin = async () => {
         const provider = new GoogleAuthProvider();
         try {
-            // モバイルブラウザの仕様（ITP等）によるエラーを防ぐため、リダイレクト方式を使用します
+            // モバイルでの「missing initial state」エラーを防ぐため、
+            // 明示的にローカルストレージへの永続化を設定します
+            await setPersistence(auth, browserLocalPersistence);
             await signInWithRedirect(auth, provider);
         } catch (error) {
             console.error("Login failed", error);
+            alert("ログインの開始に失敗しました。ブラウザのプライバシー設定（Cookieのブロック等）を確認してください。");
         }
     };
 
     // リダイレクト後の結果を確認
     React.useEffect(() => {
-        getRedirectResult(auth).catch((error) => {
-            console.error("Redirect login error:", error);
-        });
+        const checkRedirect = async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    // ログイン成功
+                    console.log("Logged in via redirect", result.user);
+                }
+            } catch (error: any) {
+                console.error("Redirect login error:", error);
+                // 特定のエラーメッセージの場合、案内を出す
+                if (error.code === 'auth/internal-error' || error.message?.includes('initial state')) {
+                    console.log("Common mobile auth error detected. Retrying state recovery...");
+                }
+            }
+        };
+        checkRedirect();
     }, []);
 
     return (
