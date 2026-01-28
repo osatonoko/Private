@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Search, Bell, MapPin, Plus, Home, User, MessageCircle, X } from 'lucide-react';
+import { useAuth } from "@/lib/useAuth";
+import { Search, Bell, MapPin, Plus, Home, User, MessageCircle, X, Camera } from 'lucide-react';
 import ParticipationModal from './ParticipationModal';
 
 interface Event {
@@ -30,6 +31,7 @@ interface HomeViewProps {
 }
 
 export default function HomeView({ onOpenCreateModal }: HomeViewProps) {
+    const { user } = useAuth();
     const [events, setEvents] = useState<Event[]>([]);
     const [activeCategory, setActiveCategory] = useState('all');
     const [selectedArea, setSelectedArea] = useState('東京都');
@@ -58,6 +60,29 @@ export default function HomeView({ onOpenCreateModal }: HomeViewProps) {
         });
         return unsubscribe;
     }, []);
+
+    // Load persisted area
+    useEffect(() => {
+        if (!user) return;
+        getDoc(doc(db, "users", user.uid)).then(snap => {
+            if (snap.exists() && snap.data().selectedArea) {
+                setSelectedArea(snap.data().selectedArea);
+            }
+        });
+    }, [user]);
+
+    // Save area on change
+    const handleAreaChange = async (area: string) => {
+        setSelectedArea(area);
+        setIsAreaModalOpen(false);
+        if (user) {
+            try {
+                await setDoc(doc(db, "users", user.uid), { selectedArea: area }, { merge: true });
+            } catch (e) {
+                console.error("Area save error:", e);
+            }
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 pb-24">
@@ -91,10 +116,7 @@ export default function HomeView({ onOpenCreateModal }: HomeViewProps) {
                             {areas.map(area => (
                                 <button
                                     key={area}
-                                    onClick={() => {
-                                        setSelectedArea(area);
-                                        setIsAreaModalOpen(false);
-                                    }}
+                                    onClick={() => handleAreaChange(area)}
                                     className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-medium transition-colors ${selectedArea === area ? 'bg-teal-50 text-teal-600' : 'hover:bg-gray-50 text-gray-600'
                                         }`}
                                 >
@@ -159,7 +181,14 @@ export default function HomeView({ onOpenCreateModal }: HomeViewProps) {
                         {events
                             .filter(e => activeCategory === 'all' || e.category === activeCategory)
                             .map((event) => (
-                                <div key={event.id} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 transition-transform active:scale-[0.98]">
+                                <div
+                                    key={event.id}
+                                    className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100 transition-transform active:scale-[0.98] cursor-pointer"
+                                    onClick={() => {
+                                        setSelectedEvent(event);
+                                        setIsParticipationModalOpen(true);
+                                    }}
+                                >
                                     <div className="relative h-48 bg-gray-200">
                                         {event.imageUrl ? (
                                             <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
@@ -198,15 +227,9 @@ export default function HomeView({ onOpenCreateModal }: HomeViewProps) {
                                         </div>
                                         <div className="mt-4 flex items-center justify-between border-t border-gray-50 pt-4">
                                             <span className="text-teal-600 font-bold text-sm">¥{event.price}</span>
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedEvent(event);
-                                                    setIsParticipationModalOpen(true);
-                                                }}
-                                                className="bg-teal-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl active:scale-95 transition-transform"
-                                            >
+                                            <div className="bg-teal-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl transition-colors">
                                                 参加する
-                                            </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -126,6 +126,41 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
                             ⚠️ {error}
                         </div>
                     )}
+
+                    {/* Image Upload UI */}
+                    <div className="space-y-3">
+                        <label className="text-sm font-bold text-gray-700">メイン画像</label>
+                        <div className="relative group">
+                            <label className={`w-full h-48 flex flex-col items-center justify-center border-2 border-dashed rounded-[32px] cursor-pointer transition-all overflow-hidden ${imageUrl ? 'border-transparent' : 'border-gray-200 bg-gray-50 hover:bg-teal-50/50 hover:border-teal-200'}`}>
+                                {imageUrl ? (
+                                    <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <>
+                                        <div className="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center text-teal-600 mb-3 group-hover:scale-110 transition-transform">
+                                            <Camera size={24} />
+                                        </div>
+                                        <p className="text-xs font-bold text-gray-400">タップして画像をアップロード</p>
+                                    </>
+                                )}
+                                <input type="file" className="hidden" accept="image/*" onChange={handleImageSelect} />
+                            </label>
+                            {imageUrl && (
+                                <button
+                                    type="button"
+                                    onClick={() => setImageUrl('')}
+                                    className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full backdrop-blur-sm hover:bg-black/70 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            )}
+                            {loading && (
+                                <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] flex items-center justify-center rounded-[32px]">
+                                    <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Genre Selector */}
                     <div className="space-y-3">
                         <label className="text-sm font-bold text-gray-700 flex items-center gap-2">カテゴリー <span className="text-red-500">*</span></label>
@@ -142,8 +177,8 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
                                     type="button"
                                     onClick={() => setCategory(cat.id)}
                                     className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold border transition-all whitespace-nowrap ${category === cat.id
-                                        ? 'bg-teal-50 border-teal-500 text-teal-600'
-                                        : 'bg-white border-gray-100 text-gray-500'
+                                        ? 'bg-teal-600 border-teal-600 text-white shadow-lg shadow-teal-100 scale-105'
+                                        : 'bg-white border-gray-100 text-gray-500 hover:border-gray-200'
                                         }`}
                                 >
                                     <span className="text-base">{cat.icon}</span>
