@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { User, Settings, Award, History, Database, Edit2, LogOut, Save, X, Trash2 } from 'lucide-react';
+import { User, Settings, Award, History, Database, Edit2, LogOut, Save, X, Trash2, ChevronRight } from 'lucide-react';
 import { auth, db } from '@/lib/firebase';
 import { useAuth } from '@/lib/useAuth';
 import { seedDemoData } from '@/lib/seeding';
@@ -50,6 +50,7 @@ export default function MyPageView() {
             if (activeTab === 'organized') {
                 q = query(collection(db, "events"), where("hostId", "==", user.uid));
             } else {
+                // This would normally join with a participation collection
                 q = query(collection(db, "events"), where("hostId", "==", user.uid));
             }
             const snapshot = await getDocs(q);
@@ -70,13 +71,14 @@ export default function MyPageView() {
             setIsEditing(false);
         } catch (error) {
             console.error("Error saving profile:", error);
-            alert("保存に失敗しました。");
+            alert("保存に失敗しました。ルールが更新されているか確認してください。");
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDeleteEvent = async (id: string) => {
+    const handleDeleteEvent = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
         if (!confirm('このイベントを削除しますか？')) return;
         try {
             await deleteDoc(doc(db, "events", id));
@@ -109,11 +111,12 @@ export default function MyPageView() {
                 <div className="flex items-center justify-between mb-8 relative z-10">
                     <h2 className="text-2xl font-bold text-gray-800">マイページ</h2>
                     <div className="flex gap-2">
-                        <button onClick={() => setIsEditing(!isEditing)} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
-                            {isEditing ? <X size={22} /> : <Settings size={22} />}
-                        </button>
-                        <button onClick={() => auth.signOut()} className="p-2 hover:bg-red-50 rounded-full text-red-400">
-                            <LogOut size={22} />
+                        <button
+                            onClick={() => setIsEditing(!isEditing)}
+                            className={`p-2 rounded-full transition-colors ${isEditing ? 'bg-orange-50 text-orange-500' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                            title="プロフィール編集"
+                        >
+                            {isEditing ? <X size={22} /> : <Edit2 size={22} />}
                         </button>
                     </div>
                 </div>
@@ -169,7 +172,7 @@ export default function MyPageView() {
                         </div>
                     ) : (
                         <p className="text-sm text-gray-500 leading-relaxed font-medium px-1">
-                            {profile.bio || '自己紹介がまだありません。設定から追加しましょう！'}
+                            {profile.bio || '自己紹介がまだありません。編集ボタンから追加しましょう！'}
                         </p>
                     )}
                 </div>
@@ -199,26 +202,29 @@ export default function MyPageView() {
                         </div>
                     ) : (
                         myEvents.map((event) => (
-                            <div key={event.id} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-50 flex items-center gap-4">
+                            <div key={event.id} className="bg-white p-4 rounded-3xl shadow-sm border border-gray-50 flex items-center gap-4 active:scale-[0.98] transition-all">
                                 <div className="w-16 h-16 bg-gray-100 rounded-2xl overflow-hidden shrink-0">
                                     {event.imageUrl ? (
                                         <img src={event.imageUrl} alt="" className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-300">🖼️</div>
+                                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">🖼️</div>
                                     )}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-gray-800 truncate mb-1">{event.title}</h4>
                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{event.category}</p>
                                 </div>
-                                {activeTab === 'organized' && (
-                                    <button
-                                        onClick={() => handleDeleteEvent(event.id)}
-                                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {activeTab === 'organized' && (
+                                        <button
+                                            onClick={(e) => handleDeleteEvent(event.id, e)}
+                                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
+                                    <ChevronRight size={18} className="text-gray-300" />
+                                </div>
                             </div>
                         ))
                     )}
@@ -227,7 +233,7 @@ export default function MyPageView() {
 
             {/* Developer Section */}
             <div className="px-6 space-y-4">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Developer Zone</h4>
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Settings</h4>
                 <button
                     onClick={handleSeed}
                     disabled={seeding}
@@ -239,11 +245,21 @@ export default function MyPageView() {
                         </div>
                         <div className="text-left">
                             <span className="block font-bold text-gray-800">デモデータを追加</span>
-                            <span className="block text-[10px] text-gray-400 font-medium">Firestoreに5件のサンプルを投稿します</span>
+                            <span className="block text-[10px] text-gray-400 font-medium">サンプルを投稿して賑やかにします</span>
                         </div>
                     </div>
-                    <div className={`w-8 h-8 rounded-full border border-gray-100 flex items-center justify-center transition-all ${seeding ? 'animate-spin' : ''}`}>
-                        <span className="text-gray-300 font-bold">→</span>
+                </button>
+
+                <button
+                    onClick={() => auth.signOut()}
+                    className="w-full bg-red-50 p-5 rounded-[32px] flex items-center gap-4 active:scale-[0.98] transition-all group"
+                >
+                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-red-500 shadow-sm">
+                        <LogOut size={24} />
+                    </div>
+                    <div className="text-left">
+                        <span className="block font-bold text-red-600">ログアウト</span>
+                        <span className="block text-[10px] text-red-400 font-medium">セッションを終了して戻ります</span>
                     </div>
                 </button>
             </div>

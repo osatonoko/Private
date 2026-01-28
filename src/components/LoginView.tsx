@@ -6,6 +6,9 @@ import {
     browserLocalPersistence
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+"use client";
+
+import React from 'react';
 
 export default function LoginView() {
     const handleGoogleLogin = async () => {
