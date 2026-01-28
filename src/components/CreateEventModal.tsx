@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
+import React, { useState, useEffect } from 'react';
+import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/lib/useAuth";
@@ -10,29 +10,69 @@ import { X, Calendar, Clock, MapPin, Users, Flame, Star, BookOpen, Camera } from
 interface CreateEventModalProps {
     isOpen: boolean;
     onClose: () => void;
+    editEvent?: any;
 }
 
-export default function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
+export default function CreateEventModal({ isOpen, onClose, editEvent }: CreateEventModalProps) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
 
     // Form States
-    const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('sports');
-    const [date, setDate] = useState('');
-    const [startTime, setStartTime] = useState('');
-    const [endTime, setEndTime] = useState('');
-    const [deadline, setDeadline] = useState('');
-    const [locationName, setLocationName] = useState('');
-    const [locationArea, setLocationArea] = useState('東京都');
-    const [capacity, setCapacity] = useState('4');
-    const [price, setPrice] = useState('0');
-    const [description, setDescription] = useState('');
-    const [level, setLevel] = useState('初心者歓迎');
-    const [tags, setTags] = useState<string[]>([]);
+    const [title, setTitle] = useState(editEvent?.title || '');
+    const [category, setCategory] = useState(editEvent?.category || 'sports');
+    const [date, setDate] = useState(editEvent?.startAt ? new Date(editEvent.startAt.toDate()).toISOString().split('T')[0] : '');
+    const [startTime, setStartTime] = useState(editEvent?.startAt ? new Date(editEvent.startAt.toDate()).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '');
+    const [endTime, setEndTime] = useState(editEvent?.endAt ? new Date(editEvent.endAt.toDate()).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }) : '');
+    const [deadline, setDeadline] = useState(editEvent?.deadlineAt ? new Date(editEvent.deadlineAt.toDate()).toISOString().slice(0, 16) : '');
+    const [locationName, setLocationName] = useState(editEvent?.locationName || '');
+    const [locationArea, setLocationArea] = useState(editEvent?.locationArea || '東京都');
+    const [capacity, setCapacity] = useState(editEvent?.capacity?.toString() || '4');
+    const [price, setPrice] = useState(editEvent?.price?.toString() || '0');
+    const [description, setDescription] = useState(editEvent?.description || '');
+    const [level, setLevel] = useState(editEvent?.level || '初心者歓迎');
+    const [tags, setTags] = useState<string[]>(editEvent?.tags || []);
     const [tagInput, setTagInput] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
+    const [imageUrl, setImageUrl] = useState(editEvent?.imageUrl || '');
     const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (editEvent) {
+            setTitle(editEvent.title);
+            setCategory(editEvent.category);
+            const start = editEvent.startAt?.toDate();
+            if (start) {
+                setDate(start.toISOString().split('T')[0]);
+                setStartTime(start.toTimeString().slice(0, 5));
+            }
+            const end = editEvent.endAt?.toDate();
+            if (end) setEndTime(end.toTimeString().slice(0, 5));
+            const limit = editEvent.deadlineAt?.toDate();
+            if (limit) setDeadline(limit.toISOString().slice(0, 16));
+            setLocationName(editEvent.locationName);
+            setLocationArea(editEvent.locationArea);
+            setCapacity(editEvent.capacity.toString());
+            setPrice(editEvent.price.toString());
+            setDescription(editEvent.description);
+            setLevel(editEvent.level);
+            setTags(editEvent.tags || []);
+            setImageUrl(editEvent.imageUrl || '');
+        } else {
+            // Reset for create
+            setTitle('');
+            setCategory('sports');
+            setDate('');
+            setStartTime('');
+            setEndTime('');
+            setDeadline('');
+            setLocationName('');
+            setCapacity('4');
+            setPrice('0');
+            setDescription('');
+            setLevel('初心者歓迎');
+            setTags([]);
+            setImageUrl('');
+        }
+    }, [editEvent, isOpen]);
 
     if (!isOpen) return null;
 
@@ -80,7 +120,7 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
 
         setLoading(true);
         try {
-            await addDoc(collection(db, "events"), {
+            const data = {
                 title,
                 category,
                 description,
@@ -90,17 +130,26 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
                 locationName,
                 locationArea,
                 price: parseInt(price),
-                deposit: 50, // Fixed deposit as per design
+                deposit: 50,
                 capacity: parseInt(capacity),
-                currentCount: 0,
-                status: 'recruiting',
                 tags,
                 imageUrl,
                 hostId: user.uid,
                 hostName: user.displayName,
                 hostAvatar: user.photoURL,
-                createdAt: serverTimestamp(),
-            });
+                updatedAt: serverTimestamp(),
+            };
+
+            if (editEvent) {
+                await updateDoc(doc(db, "events", editEvent.id), data);
+            } else {
+                await addDoc(collection(db, "events"), {
+                    ...data,
+                    currentCount: 0,
+                    status: 'recruiting',
+                    createdAt: serverTimestamp(),
+                });
+            }
             onClose();
         } catch (e) {
             console.error("Error adding document: ", e);
@@ -114,7 +163,7 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4">
             <div className="w-full max-w-lg bg-white rounded-t-[32px] sm:rounded-[32px] overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300">
                 <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-gray-800">募集を作成</h2>
+                    <h2 className="text-xl font-bold text-gray-800">{editEvent ? '募集を編集' : '募集を作成'}</h2>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400">
                         <X size={24} />
                     </button>
@@ -378,7 +427,7 @@ export default function CreateEventModal({ isOpen, onClose }: CreateEventModalPr
                             disabled={loading}
                             className="w-full bg-teal-600 text-white font-bold py-4 rounded-3xl hover:bg-teal-700 shadow-lg shadow-teal-100 transition-all disabled:opacity-50"
                         >
-                            {loading ? '送信中...' : '公開する'}
+                            {loading ? '送信中...' : (editEvent ? '更新する' : '公開する')}
                         </button>
                     </div>
                 </form>

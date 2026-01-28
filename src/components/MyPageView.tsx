@@ -8,6 +8,7 @@ import { seedDemoData } from '@/lib/seeding';
 import { doc, getDoc, setDoc, collection, query, where, getDocs, updateDoc, deleteDoc, orderBy } from 'firebase/firestore';
 import { User, Settings, Award, History, Database, Edit2, LogOut, Save, X, Trash2, ChevronRight, Camera, MapPin } from 'lucide-react';
 import ParticipationModal from './ParticipationModal';
+import CreateEventModal from './CreateEventModal';
 
 interface UserProfile {
     displayName: string;
@@ -26,6 +27,8 @@ export default function MyPageView() {
     const [activeTab, setActiveTab] = useState<'organized' | 'joined'>('organized');
     const [selectedEvent, setSelectedEvent] = useState<any>(null);
     const [isParticipationModalOpen, setIsParticipationModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [eventToEdit, setEventToEdit] = useState<any>(null);
 
     useEffect(() => {
         if (user) {
@@ -109,6 +112,12 @@ export default function MyPageView() {
         } catch (e) {
             alert('削除に失敗しました。');
         }
+    };
+
+    const handleEditEvent = (event: any, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEventToEdit(event);
+        setIsEditModalOpen(true);
     };
 
     const handleSeed = async () => {
@@ -285,12 +294,20 @@ export default function MyPageView() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     {activeTab === 'organized' && !isEditing && (
-                                        <button
-                                            onClick={(e) => handleDeleteEvent(event.id, e)}
-                                            className="p-2 text-gray-300 hover:text-red-500 transition-colors"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        <>
+                                            <button
+                                                onClick={(e) => handleEditEvent(event, e)}
+                                                className="p-2 text-gray-300 hover:text-teal-500 transition-colors"
+                                            >
+                                                <Edit2 size={18} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleDeleteEvent(event.id, e)}
+                                                className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </>
                                     )}
                                     <ChevronRight size={18} className="text-gray-300" />
                                 </div>
@@ -343,6 +360,15 @@ export default function MyPageView() {
                 isOpen={isParticipationModalOpen}
                 onClose={() => setIsParticipationModalOpen(false)}
                 event={selectedEvent}
+            />
+            <CreateEventModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setEventToEdit(null);
+                    fetchMyEvents();
+                }}
+                editEvent={eventToEdit}
             />
         </div>
     );
